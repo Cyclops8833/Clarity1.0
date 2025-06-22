@@ -1,10 +1,18 @@
 # app.py
 import streamlit as st
-from data import ISSUES, get_articles_by_bias
-from analytics import Analytics
+import os
+import json
+from data import fetch_real_news, get_articles_by_bias # Import the new fetch function
 
 # Initialize analytics
-analytics = Analytics()
+# Note: Re-initialize to ensure it's re-read if the file changes
+# In production, use st.session_state for persistence.
+@st.cache_resource
+def get_analytics_instance():
+    from analytics import Analytics
+    return Analytics()
+
+analytics = get_analytics_instance()
 
 # Set page config for mobile optimization
 st.set_page_config(
@@ -14,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Advanced mobile-first CSS with animations and enhanced styling
+# --- ADVANCED CSS (Unchanged from last version, but included for completeness) ---
 advanced_css = """
 <style>
 /* Import fonts */
@@ -22,15 +30,15 @@ advanced_css = """
 
 /* CSS Variables for easy theming */
 :root {
-    --primary-color: #5B47FB;
+    --primary-color: #5B47FB; /* A vibrant purple */
     --primary-dark: #4936E8;
-    --secondary-color: #F0F2F5;
-    --text-primary: #1A1A2E;
-    --text-secondary: #6B7280;
-    --text-tertiary: #9CA3AF;
-    --bg-primary: #FFFFFF;
-    --bg-secondary: #F9FAFB;
-    --border-color: #E5E7EB;
+    --secondary-color: #F0F2F5; /* Light grey for secondary elements */
+    --text-primary: #1A1A2E; /* Dark blue/black for primary text */
+    --text-secondary: #6B7280; /* Grey for secondary text */
+    --text-tertiary: #9CA3AF; /* Lighter grey */
+    --bg-primary: #FFFFFF; /* White background */
+    --bg-secondary: #F9FAFB; /* Off-white for cards, etc. */
+    --border-color: #E5E7EB; /* Light border color */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -92,7 +100,7 @@ h1 {
     letter-spacing: -0.01em;
 }
 
-h2 {
+h2 { /* Section headers */
     font-size: 1.5rem !important;
     font-weight: 700 !important;
     color: var(--text-primary) !important;
@@ -102,7 +110,7 @@ h2 {
     padding-bottom: 0.5rem;
 }
 
-h3 {
+h3 { /* Card titles */
     font-size: 1.25rem !important;
     font-weight: 600 !important;
     color: var(--text-primary) !important;
@@ -132,13 +140,13 @@ h3 {
     padding: 0.5rem 0 !important;
 }
 
-.stSlider > div > div > div {
+.stSlider > div > div > div { /* Slider track */
     height: 8px !important;
     background: var(--secondary-color) !important;
     border-radius: 4px !important;
 }
 
-.stSlider > div > div > div > div {
+.stSlider > div > div > div > div { /* Slider thumb */
     width: 28px !important;
     height: 28px !important;
     background: var(--primary-color) !important;
@@ -293,7 +301,7 @@ h3 {
 .source-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.125rem 0.5rem;
+    padding: 0.2rem 0.6rem;
     border-radius: 12px;
     font-weight: 600;
     font-size: 0.75rem;
@@ -314,6 +322,11 @@ h3 {
 .bias-right .source-badge {
     background: rgba(239, 68, 68, 0.1);
     color: #DC2626;
+}
+
+.bias-unavailable {
+    background: #E5E7EB;
+    color: #9CA3AF;
 }
 
 /* Enhanced buttons */
@@ -340,6 +353,7 @@ h3 {
 
 .stButton > button:active {
     transform: translateY(0) !important;
+    box-shadow: 0 2px 10px 0 rgba(91, 71, 251, 0.2) !important;
 }
 
 /* Feedback section with modern design */
@@ -434,25 +448,13 @@ h3 {
 
 /* Animations */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 /* Responsive adjustments */
@@ -462,30 +464,18 @@ h3 {
         max-width: 720px;
     }
 
-    h1 {
-        font-size: 2.5rem !important;
-    }
-
-    .subtitle {
-        font-size: 1.25rem;
-    }
-
-    .issue-card, .bias-selector, .feedback-section, .analytics-section {
-        padding: 2rem;
-    }
+    h1 { font-size: 2.5rem !important; }
+    .subtitle { font-size: 1.25rem; }
+    .issue-card, .bias-selector, .feedback-section, .analytics-section { padding: 2rem; }
 
     .stButton > button {
         width: auto !important;
         min-width: 150px !important;
     }
-
-    .feedback-section {
-        margin: 3rem auto 2rem auto;
-    }
+    .feedback-section { margin: 3rem auto 2rem auto; }
 }
 </style>
 """
-
 st.markdown(advanced_css, unsafe_allow_html=True)
 
 # --- App Header ---
@@ -497,16 +487,43 @@ if 'visit_logged' not in st.session_state:
     analytics.log_visit()
     st.session_state.visit_logged = True
 
+# --- Country Selector ---
+COUNTRY_OPTIONS = {
+    'Global (US)': 'us',
+    'Australia': 'au',
+    'United Kingdom': 'gb',
+    'Canada': 'ca',
+    'India': 'in',
+    'Germany': 'de',
+    'France': 'fr',
+    'Japan': 'jp',
+}
+default_country = 'Australia' if st.session_state.get('initial_load', True) else st.session_state.get('country', 'Global (US)')
+default_index = list(COUNTRY_OPTIONS.keys()).index(default_country)
+st.session_state.initial_load = False
+
+# This widget triggers a rerun when its value changes
+selected_country_name = st.selectbox(
+    '📍 Select your region',
+    options=list(COUNTRY_OPTIONS.keys()),
+    index=default_index,
+    help="Select a region to view top headlines from that country."
+)
+
+selected_country_code = COUNTRY_OPTIONS[selected_country_name]
+
+# Store the selected country in session state
+if 'country' not in st.session_state or st.session_state.country != selected_country_code:
+    st.session_state.country = selected_country_code
+    st.rerun() # Rerun to fetch new articles based on country
+
 # --- Bias Selector ---
 st.markdown("<div class='bias-selector'>", unsafe_allow_html=True)
 st.markdown("<h3>CHOOSE YOUR PERSPECTIVE</h3>", unsafe_allow_html=True)
 
 bias_preference = st.slider(
     "Bias Preference",
-    min_value=-1,
-    max_value=1,
-    value=0,
-    step=1,
+    min_value=-1, max_value=1, value=0, step=1,
     label_visibility="collapsed"
 )
 
@@ -517,62 +534,61 @@ right_class = "active" if bias_preference == 1 else ""
 
 st.markdown(f"""
 <div class="slider-labels">
-    <div class="slider-label {left_class}">
-        <span class="slider-icon">⬅️</span>
-        Left-Leaning
-    </div>
-    <div class="slider-label {center_class}">
-        <span class="slider-icon">↕️</span>
-        Balanced
-    </div>
-    <div class="slider-label {right_class}">
-        <span class="slider-icon">➡️</span>
-        Right-Leaning
-    </div>
+    <div class="slider-label {left_class}"><span class="slider-icon">⬅️</span> Left</div>
+    <div class="slider-label {center_class}"><span class="slider-icon">⚖️</span> Center</div>
+    <div class="slider-label {right_class}"><span class="slider-icon">➡️</span> Right</div>
 </div>
 """, unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Log slider usage (only if it changes to avoid logging on every rerun)
+# Log slider usage (only if it changes)
 if 'last_slider_pos' not in st.session_state or st.session_state.last_slider_pos != bias_preference:
     analytics.log_slider_position(bias_preference)
     st.session_state.last_slider_pos = bias_preference
 
-# --- Display Issues ---
-st.markdown("<h2>Today's Major Issues</h2>", unsafe_allow_html=True)
+# --- Fetch and Display Issues ---
+st.markdown(f"<h2>Top Issues in {selected_country_name}</h2>", unsafe_allow_html=True)
+
+# Use a spinner to show that news is loading
+with st.spinner("Fetching today's headlines..."):
+    # Pass the selected country code to the fetch function
+    ISSUES = fetch_real_news(country_code=selected_country_code)
 
 if not ISSUES:
-    st.info("No news issues available at the moment. Please check back later.")
+    st.info("No news issues available from this region at the moment. Please try another region or check back later.")
 else:
     for issue_index, issue in enumerate(ISSUES):
         st.markdown(f"<div class='issue-card' style='animation-delay: {issue_index * 0.1}s'>", unsafe_allow_html=True)
         st.markdown(f"<h3>{issue['headline']}</h3>", unsafe_allow_html=True)
-
+        
         # Keywords
         keywords_html = "".join([f"<span class='keyword-pill'>{kw}</span>" for kw in issue['keywords']])
         st.markdown(f"<div class='keywords'><strong>Topics:</strong> {keywords_html}</div>", unsafe_allow_html=True)
+        
+        # Display the bias badges for this issue to show what's available
+        biases_available_html = ""
+        for bias_label in ['left', 'center', 'right']:
+            badge_class = f"bias-{bias_label}" if bias_label in issue.get('biases_covered', []) else "bias-unavailable"
+            biases_available_html += f"<span class='source-badge {badge_class}'>{bias_label.upper()}</span> "
+
+        st.markdown(f"<p style='margin-bottom: 1rem;'><strong>Available Perspectives:</strong> {biases_available_html}</p>", unsafe_allow_html=True)
 
         filtered_articles = get_articles_by_bias(issue, bias_preference)
-
+        
         if not filtered_articles:
             st.markdown("<p>No articles match your current bias preference for this issue.</p>", unsafe_allow_html=True)
         else:
             for article_index, article in enumerate(filtered_articles):
                 bias_class = f"bias-{article['bias']}"
-                # Using st.markdown for the link allows tracking via a button or JS in future
-                # For MVP, direct link is fine.
                 article_html = f"""
                 <a href="{article['url']}" target="_blank" rel="noopener noreferrer" class="article-item" style='animation-delay: {article_index * 0.05}s'>
                     <div class="article-link">{article['title']}</div>
                     <div class="article-meta">
-                        <span>{article['source']}</span> • <span class="{bias_class} source-badge">{article['bias'].upper()}</span>
+                        <span>{article['source']}</span> • <span class="source-badge {bias_class}">{article['bias'].upper()}</span>
                     </div>
                 </a>
                 """
                 st.markdown(article_html, unsafe_allow_html=True)
-                # Note: Click tracking for pure HTML links in Streamlit without JS is tricky.
-                # A "Read" button per article would make tracking easier with st.button and callbacks.
-
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Feedback Form ---
@@ -587,11 +603,7 @@ feedback_text = st.text_area(
 
 if st.button("Send Feedback"):
     if feedback_text.strip():
-        # In a real app, save this to a database or send an email
         st.success("🙏 Thank you! Your feedback has been received.")
-        # Clear the text area after submission
-        # This requires a bit more complex state management if we want to clear it AND show success.
-        # For now, let's keep it simple. User can manually clear.
     else:
         st.warning("Please enter some feedback before sending.")
 st.markdown('</div>', unsafe_allow_html=True)
@@ -600,41 +612,28 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="analytics-section">', unsafe_allow_html=True)
 with st.expander("📊 Site Analytics (Admin Only)", expanded=False):
     admin_password = st.text_input("Enter Admin Password", type="password", key="admin_pass_expander")
-    if admin_password == "clarity2023": # Keep your actual password secure
+    if admin_password == "clarity2023":
         summary = analytics.get_summary()
         st.markdown("<div class='metric-grid'>", unsafe_allow_html=True)
-
         st.markdown(f"""
-            <div class='metric-card'>
-                <p class='metric-value'>{summary['total_visits']}</p>
-                <p class='metric-label'>Total Visits</p>
-            </div>
-            <div class='metric-card'>
-                <p class='metric-value'>{summary['total_clicks']}</p>
-                <p class='metric-label'>Article Clicks</p>
-            </div>
-            <div class='metric-card'>
-                <p class='metric-value'>{summary['avg_slider_position']:.1f}</p>
-                <p class='metric-label'>Avg. Slider Pos.</p>
-            </div>
-            <div class='metric-card'>
-                <p class='metric-value'>{(summary['total_clicks']/max(1,summary['total_visits'])*100):.0f}%</p>
-                <p class='metric-label'>Click/Visit %</p>
-            </div>
+            <div class='metric-card'><p class='metric-value'>{summary['total_visits']}</p><p class='metric-label'>Total Visits</p></div>
+            <div class='metric-card'><p class='metric-value'>{summary['total_clicks']}</p><p class='metric-label'>Article Clicks</p></div>
+            <div class='metric-card'><p class='metric-value'>{summary['avg_slider_position']:.1f}</p><p class='metric-label'>Avg. Slider Pos.</p></div>
+            <div class='metric-card'><p class='metric-value'>{(summary['total_clicks']/max(1,summary['total_visits'])*100):.0f}%</p><p class='metric-label'>Click/Visit %</p></div>
         """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
+        
         if summary['clicks_by_url']:
             st.markdown("<h4>Clicks per Article URL:</h4>", unsafe_allow_html=True)
             for url, count in summary['clicks_by_url'].items():
                 st.markdown(f"<small><code>{url}</code>: {count} clicks</small>", unsafe_allow_html=True)
         else:
             st.markdown("<small>No article clicks recorded yet.</small>", unsafe_allow_html=True)
-    elif admin_password: # If password entered but incorrect
+    elif admin_password:
         st.error("Incorrect admin password.")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer (optional, keep it minimal)
+# Footer
 st.markdown("""
 <hr style='margin-top: 3rem; border-color: var(--border-color);'>
 <p style='text-align: center; font-size: 0.875rem; color: var(--text-tertiary); margin-top:1rem;'>
