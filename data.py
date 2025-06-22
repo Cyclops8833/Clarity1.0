@@ -4,207 +4,159 @@ import json
 from datetime import datetime, timedelta
 from newsapi import NewsApiClient
 import streamlit as st
-import itertools
 
-# Initialize NewsAPI client
-# IMPORTANT: Set your API key as a Streamlit secret or environment variable
-NEWS_API_KEY = os.environ.get('NEWS_API_KEY') or st.secrets.get('NEWS_API_KEY')
-if not NEWS_API_KEY or NEWS_API_KEY == 'YOUR_API_KEY_HERE':
-    st.error("NewsAPI key not found. Please add NEWS_API_KEY to your Streamlit secrets or environment variables.")
-    newsapi = None # Set to None to prevent API calls
-else:
-    try:
-        newsapi = NewsApiClient(api_key=NEWS_API_KEY)
-    except Exception as e:
-        st.error(f"Error initializing NewsAPI client: {e}")
-        newsapi = None
+# Initialize NewsAPI client with proper error handling
+NEWS_API_KEY = st.secrets["NEWS_API_KEY"]  # Get API key from Streamlit secrets
+newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 
-# Source bias mappings based on AllSides and Media Bias Fact Check
-# This is a simplified mapping for the MVP. A full database would be more accurate.
-# Use a clear mapping to avoid sources appearing under multiple biases.
+# Source bias mappings (keep this part as is)
 SOURCE_BIAS_MAP = {
     # Left-leaning sources
-    'cnn': 'left', 'the-huffington-post': 'left', 'politico': 'left',
-    'the-washington-post': 'left', 'the-new-york-times': 'left', 'vice-news': 'left',
-    'msnbc': 'left', 'buzzfeed': 'left', 'nbc-news': 'left', 'the-guardian-uk': 'left',
+    'cnn': 'left',
+    'msnbc': 'left',
+    'the-guardian': 'left',
+    'the-guardian-au': 'left',
+    'the-guardian-uk': 'left',
+    'abc-news-au': 'left',
+    'abc-news': 'left',
     
-    # Center sources (typically more fact-based/less opinionated)
-    'reuters': 'center', 'associated-press': 'center', 'bbc-news': 'center',
-    'usa-today': 'center', 'npr': 'center', 'the-hill': 'center', 'abc-news': 'center',
-    'axios': 'center', 'bloomberg': 'center', 'cbs-news': 'center', 'sbs': 'center',
-    'australian-financial-review': 'center', # Adding some AU sources
+    # Center sources
+    'reuters': 'center',
+    'associated-press': 'center',
+    'bbc-news': 'center',
+    'bloomberg': 'center',
+    'australian-financial-review': 'center',
+    'financial-review': 'center',
     
     # Right-leaning sources
-    'fox-news': 'right', 'breitbart-news': 'right', 'newsmax': 'right',
-    'the-wall-street-journal': 'right', 'the-washington-times': 'right',
-    'daily-mail': 'right', 'new-york-post': 'right', 'the-australian': 'right', # Adding some AU sources
-    'daily-telegraph': 'right',
+    'fox-news': 'right',
+    'sky-news': 'right',
+    'sky-news-au': 'right',
+    'the-australian': 'right',
+    'news-com-au': 'right'
 }
 
-# Cache configuration
-CACHE_DIR = '.cache'
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
-CACHE_DURATION_MINUTES = 30  # Refresh news every 30 minutes
-
-def get_source_bias(source_id):
-    """Get bias rating for a news source. Defaults to 'center' if unknown."""
-    if source_id:
-        return SOURCE_BIAS_MAP.get(source_id.lower(), 'center')
-    return 'center'
-
-def extract_keywords(title, description=None):
-    """Simple keyword extraction from text."""
-    text = f"{title or ''} {description or ''}".lower()
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
-                  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'have',
-                  'has', 'had', 'will', 'would', 'could', 'should', 'may', 'might', 'be', 'do', 'says'}
-    
-    words = text.split()
-    keywords = [word.strip('.,!?;:"\'()[]{}') for word in words if len(word) > 3 and word not in stop_words and word.isalpha()]
-    
-    return list(set(keywords)) # Return unique keywords
-
-def load_cache(cache_key):
-    """Load cached news data if it exists and is fresh."""
-    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
-    if os.path.exists(cache_file):
-        try:
-            with open(cache_file, 'r') as f:
-                cache_data = json.load(f)
-                cache_time = datetime.fromisoformat(cache_data.get('timestamp', ''))
-                if datetime.now() - cache_time < timedelta(minutes=CACHE_DURATION_MINUTES):
-                    return cache_data.get('issues', [])
-        except (json.JSONDecodeError, ValueError):
-            pass # Cache is corrupted or invalid, ignore
-    return None
-
-def save_cache(cache_key, issues):
-    """Save news data to cache."""
-    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
-    cache_data = {'timestamp': datetime.now().isoformat(), 'issues': issues}
-    try:
-        with open(cache_file, 'w') as f:
-            json.dump(cache_data, f)
-    except IOError:
-        pass # Fail silently if writing cache fails
-
-@st.cache_data(ttl=CACHE_DURATION_MINUTES * 60, show_spinner=False)
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
 def fetch_real_news(country_code='us'):
-    """
-    Fetch real news from NewsAPI, group by topic, and format for Clarity.
-    Caches data in a file and in Streamlit's memory cache.
-    """
-    if not newsapi:
-        return get_fallback_issues()
-
-    cache_key = f"news_{country_code}"
-    cached_issues = load_cache(cache_key)
-    if cached_issues:
-        return cached_issues
-    
+    """Fetch news from NewsAPI with better error handling and logging"""
     try:
-        st.write("Never ending news...")
+        # First try country-specific news
+        top_headlines = newsapi.get_top_headlines(
+            country=country_code,
+            language='en',
+            page_size=100  # Get more articles to ensure we have enough after filtering
+        )
         
-        all_articles = []
-        # Fetch global headlines (US)
-        global_headlines = newsapi.get_top_headlines(language='en', country='us', page_size=20)
-        all_articles.extend(global_headlines.get('articles', []))
+        if not top_headlines.get('articles'):
+            # If no country-specific news, fall back to general English news
+            top_headlines = newsapi.get_top_headlines(
+                language='en',
+                page_size=100
+            )
         
-        # Fetch country-specific headlines
-        if country_code and country_code != 'us':
-            local_headlines = newsapi.get_top_headlines(language='en', country=country_code, page_size=20)
-            all_articles.extend(local_headlines.get('articles', []))
+        # Process the articles
+        processed_articles = []
+        seen_titles = set()
         
-        # Group articles by a common headline/topic
-        issues_map = {}
-        for article in all_articles:
-            if not article.get('title') or not article.get('url') or not article.get('source', {}).get('id'):
+        for article in top_headlines.get('articles', []):
+            # Skip articles without required fields
+            if not all([article.get('title'), article.get('url'), article.get('source')]):
                 continue
+                
+            # Skip duplicate titles
+            title_key = article['title'].lower()[:60]
+            if title_key in seen_titles:
+                continue
+            seen_titles.add(title_key)
             
-            # Use the first few words of the title as a topic key
-            topic_key = " ".join(article['title'].lower().split()[:5])
+            # Get source bias
+            source_id = article['source'].get('id', '').lower()
+            source_name = article['source'].get('name', 'Unknown Source')
+            bias = SOURCE_BIAS_MAP.get(source_id, 'center')
             
-            source_id = article['source']['id']
-            source_name = article['source']['name']
-            bias = get_source_bias(source_id)
+            processed_articles.append({
+                'title': article['title'],
+                'source': source_name,
+                'bias': bias,
+                'url': article['url'],
+                'description': article.get('description', ''),
+                'publishedAt': article.get('publishedAt', '')
+            })
+        
+        # Group articles by similar topics
+        issues = []
+        used_articles = set()
+        
+        for i, article in enumerate(processed_articles):
+            if article['url'] in used_articles:
+                continue
+                
+            # Create a new issue
+            related_articles = [article]
+            used_articles.add(article['url'])
             
-            if topic_key not in issues_map:
-                issues_map[topic_key] = {
+            # Find related articles with different biases
+            for other_article in processed_articles:
+                if other_article['url'] in used_articles:
+                    continue
+                    
+                # Simple similarity check (can be improved)
+                if len(set(article['title'].lower().split()) & 
+                       set(other_article['title'].lower().split())) >= 3:
+                    related_articles.append(other_article)
+                    used_articles.add(other_article['url'])
+                    
+                    # Stop if we have articles from all biases
+                    if len(set(a['bias'] for a in related_articles)) >= 3:
+                        break
+            
+            # Only create issue if we have at least 2 articles with different biases
+            if len(set(a['bias'] for a in related_articles)) >= 2:
+                issues.append({
+                    'id': len(issues) + 1,
                     'headline': article['title'],
-                    'keywords': extract_keywords(article['title'], article.get('description', '')),
-                    'articles': {'left': None, 'center': None, 'right': None} # Use a dictionary to store one article per bias
-                }
-            
-            # Add article if we haven't found a source for this bias yet
-            if issues_map[topic_key]['articles'][bias] is None:
-                issues_map[topic_key]['articles'][bias] = {
-                    'title': article['title'],
-                    'source': source_name,
-                    'bias': bias,
-                    'url': article['url']
-                }
-
-        # Format the issues for display
-        final_issues = []
-        seen_urls = set()
-        for i, (key, issue_data) in enumerate(issues_map.items()):
-            # Filter out empty articles and duplicates
-            articles = [art for art in issue_data['articles'].values() if art is not None]
-            
-            # Ensure unique URLs within the issue
-            unique_articles = []
-            for art in articles:
-                if art['url'] not in seen_urls:
-                    unique_articles.append(art)
-                    seen_urls.add(art['url'])
-            
-            # Only add the issue if we have at least two different bias viewpoints
-            biases_covered = set(art['bias'] for art in unique_articles)
-            if len(biases_covered) >= 2:
-                final_issues.append({
-                    'id': i + 1,
-                    'headline': issue_data['headline'],
-                    'keywords': issue_data['keywords'],
-                    'articles': unique_articles,
-                    'biases_covered': sorted(list(biases_covered))
+                    'keywords': extract_keywords(article['title'], article['description']),
+                    'articles': related_articles,
+                    'biases_covered': list(set(a['bias'] for a in related_articles))
                 })
+            
+            # Limit to 10 issues
+            if len(issues) >= 10:
+                break
         
-        # Save to cache
-        save_cache(cache_key, final_issues)
-        
-        # Limit to 10 issues for performance/UI
-        return final_issues[:10]
-        
+        return issues
+    
     except Exception as e:
         st.error(f"Error fetching news: {str(e)}")
-        return get_fallback_issues()
+        return []
 
-def get_fallback_issues():
-    """Return fallback issues if API fails or no key is provided."""
-    return [
-        {
-            "id": 1,
-            "headline": "Unable to fetch live news",
-            "keywords": ["api", "error", "connection"],
-            "articles": [
-                {"title": "Please check your NewsAPI key or internet connection.", "source": "System", "bias": "center", "url": "#"},
-                {"title": "Displaying mock data instead.", "source": "System", "bias": "center", "url": "#"},
-            ],
-            'biases_covered': ['center']
-        }
-    ]
+def extract_keywords(title, description):
+    """Extract keywords from title and description"""
+    text = f"{title} {description}".lower()
+    words = text.split()
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with'}
+    
+    # Get unique words that aren't stop words
+    keywords = []
+    seen = set()
+    for word in words:
+        word = ''.join(c for c in word if c.isalnum())
+        if (len(word) > 3 and 
+            word not in stop_words and 
+            word not in seen):
+            keywords.append(word)
+            seen.add(word)
+            if len(keywords) >= 5:  # Limit to 5 keywords
+                break
+    
+    return keywords
 
-# Main data interface, remains the same
 def get_articles_by_bias(issue, bias_preference):
-    """Filter articles based on user bias preference."""
+    """Filter articles based on user bias preference"""
     articles = issue["articles"]
     if bias_preference == -1:
-        # Show left and center articles
         return [a for a in articles if a["bias"] in ["left", "center"]]
     elif bias_preference == 1:
-        # Show right and center articles
         return [a for a in articles if a["bias"] in ["right", "center"]]
     else:
-        # Show all for center preference
         return articles
