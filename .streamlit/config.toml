@@ -1,6 +1,6 @@
-# Tell Streamlit Cloud to use a stable Python version
-# This prevents build issues with bleeding-edge versions.
-pythonVersion = "3.11" # Or "3.10", "3.9"
+# .streamlit/config.toml
+[general]
+pythonVersion = "3.11"
 
 [logger]
 level = "info"
@@ -8,15 +8,7 @@ level = "info"
 [server]
 headless = true
 enableCORS = false
-enableXsrfProtection = false # Usually not needed for simple apps
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
-
-# Optional: You can also set theme colors here if you prefer over CSS variables
-# [theme]
-# primaryColor="#5B47FB"
-# backgroundColor="#F8F9FA"
-# secondaryBackgroundColor="#FFFFFF"
-# textColor="#1A1A2E"
-# font="sans serif"
