@@ -9,7 +9,7 @@ analytics = Analytics()
 # Set page config for mobile optimization
 st.set_page_config(
     page_title="Clarity: Break the Echo Chamber",
-    page_icon="🔍", # You can use an emoji or a URL to an icon
+    page_icon="🔍",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -22,15 +22,15 @@ advanced_css = """
 
 /* CSS Variables for easy theming */
 :root {
-    --primary-color: #5B47FB; /* A vibrant purple */
+    --primary-color: #5B47FB;
     --primary-dark: #4936E8;
-    --secondary-color: #F0F2F5; /* Light grey for secondary elements */
-    --text-primary: #1A1A2E; /* Dark blue/black for primary text */
-    --text-secondary: #6B7280; /* Grey for secondary text */
-    --text-tertiary: #9CA3AF; /* Lighter grey */
-    --bg-primary: #FFFFFF; /* White background */
-    --bg-secondary: #F9FAFB; /* Off-white for cards, etc. */
-    --border-color: #E5E7EB; /* Light border color */
+    --secondary-color: #F0F2F5;
+    --text-primary: #1A1A2E;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F9FAFB;
+    --border-color: #E5E7EB;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -43,14 +43,14 @@ advanced_css = """
 /* Global reset and base styles */
 * {
     box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+    -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 16px;
     line-height: 1.6;
-    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); /* Subtle gradient background */
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
     color: var(--text-primary);
     margin: 0;
     padding: 0;
@@ -60,24 +60,23 @@ html, body {
 
 /* Streamlit overrides */
 .stApp {
-    background: transparent; /* Use the body gradient */
+    background: transparent;
 }
 
 .main .block-container {
     padding: 1rem;
-    max-width: 100%; /* Ensure it's responsive */
-    animation: fadeInUp 0.6s ease-out; /* Entry animation for content */
+    max-width: 100%;
+    animation: fadeInUp 0.6s ease-out;
 }
 
 /* Typography with better hierarchy */
 h1 {
-    font-size: 2rem !important; /* Slightly smaller for mobile, adjusts with media queries */
+    font-size: 2rem !important;
     font-weight: 800 !important;
     color: var(--text-primary) !important;
     text-align: center !important;
     margin: 0 0 0.25rem 0 !important;
     letter-spacing: -0.02em !important;
-    /* Gradient text for a modern touch */
     background: linear-gradient(135deg, var(--primary-color) 0%, #7C3AED 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -93,7 +92,7 @@ h1 {
     letter-spacing: -0.01em;
 }
 
-h2 { /* Section headers */
+h2 {
     font-size: 1.5rem !important;
     font-weight: 700 !important;
     color: var(--text-primary) !important;
@@ -103,7 +102,7 @@ h2 { /* Section headers */
     padding-bottom: 0.5rem;
 }
 
-h3 { /* Card titles */
+h3 {
     font-size: 1.25rem !important;
     font-weight: 600 !important;
     color: var(--text-primary) !important;
@@ -133,13 +132,13 @@ h3 { /* Card titles */
     padding: 0.5rem 0 !important;
 }
 
-.stSlider > div > div > div { /* Slider track */
+.stSlider > div > div > div {
     height: 8px !important;
     background: var(--secondary-color) !important;
     border-radius: 4px !important;
 }
 
-.stSlider > div > div > div > div { /* Slider thumb */
+.stSlider > div > div > div > div {
     width: 28px !important;
     height: 28px !important;
     background: var(--primary-color) !important;
@@ -168,21 +167,21 @@ h3 { /* Card titles */
     flex-direction: column;
     align-items: center;
     font-size: 0.875rem;
-    color: var(--text-tertiary); /* Default muted color */
+    color: var(--text-tertiary);
     font-weight: 500;
     transition: var(--transition);
     flex: 1;
     text-align: center;
 }
 
-.slider-label.active { /* Style for the selected label */
+.slider-label.active {
     color: var(--primary-color);
     font-weight: 700;
     transform: scale(1.05);
 }
 
 .slider-icon {
-    font-size: 1.5rem; /* Emoji size or icon font size */
+    font-size: 1.5rem;
     margin-bottom: 0.25rem;
     transition: var(--transition);
 }
@@ -197,14 +196,13 @@ h3 { /* Card titles */
     border: 1px solid var(--border-color);
     transition: var(--transition);
     animation: slideIn 0.5s ease-out;
-    animation-fill-mode: both; /* Keeps styles from animation after it finishes */
+    animation-fill-mode: both;
 }
 
 /* Staggered animation for cards */
 .issue-card:nth-child(1) { animation-delay: 0.1s; }
 .issue-card:nth-child(2) { animation-delay: 0.2s; }
 .issue-card:nth-child(3) { animation-delay: 0.3s; }
-/* Add more if you expect more cards initially visible */
 
 @media (hover: hover) {
     .issue-card:hover {
@@ -240,7 +238,7 @@ h3 { /* Card titles */
 
 /* Article items with better visual hierarchy */
 .article-item {
-    display: block; /* Makes the whole area clickable if wrapped in <a> */
+    display: block;
     padding: 1rem;
     margin: 0.75rem 0;
     background: var(--bg-secondary);
@@ -249,10 +247,10 @@ h3 { /* Card titles */
     text-decoration: none;
     transition: var(--transition);
     position: relative;
-    overflow: hidden; /* For the ::before element */
+    overflow: hidden;
 }
 
-.article-item::before { /* Accent bar for hover */
+.article-item::before {
     content: '';
     position: absolute;
     left: 0;
@@ -267,27 +265,27 @@ h3 { /* Card titles */
 .article-item:hover {
     background: var(--bg-primary);
     box-shadow: var(--shadow-sm);
-    transform: translateX(4px); /* Slight shift on hover */
+    transform: translateX(4px);
 }
 
 .article-item:hover::before {
     transform: translateX(0);
 }
 
-.article-link { /* The actual link text */
+.article-link {
     font-size: 1.0625rem !important;
     color: var(--text-primary) !important;
     text-decoration: none !important;
     font-weight: 600 !important;
     line-height: 1.4 !important;
-    display: block !important; /* Ensures it takes up width */
+    display: block !important;
     margin-bottom: 0.375rem !important;
 }
 
 .article-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem; /* Space between source and bias */
+    gap: 0.5rem;
     font-size: 0.875rem !important;
     color: var(--text-tertiary) !important;
 }
@@ -295,7 +293,7 @@ h3 { /* Card titles */
 .source-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.6rem;
+    padding: 0.125rem 0.5rem;
     border-radius: 12px;
     font-weight: 600;
     font-size: 0.75rem;
@@ -304,18 +302,18 @@ h3 { /* Card titles */
 }
 
 .bias-left .source-badge {
-    background: rgba(59, 130, 246, 0.1); /* Light blue background */
-    color: #2563EB; /* Blue text */
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563EB;
 }
 
 .bias-center .source-badge {
-    background: rgba(107, 114, 128, 0.1); /* Light grey background */
-    color: #4B5563; /* Grey text */
+    background: rgba(107, 114, 128, 0.1);
+    color: #4B5563;
 }
 
 .bias-right .source-badge {
-    background: rgba(239, 68, 68, 0.1); /* Light red background */
-    color: #DC2626; /* Red text */
+    background: rgba(239, 68, 68, 0.1);
+    color: #DC2626;
 }
 
 /* Enhanced buttons */
@@ -324,14 +322,14 @@ h3 { /* Card titles */
     color: white !important;
     border: none !important;
     border-radius: var(--radius-md) !important;
-    padding: 0.875rem 2rem !important; /* Generous padding */
+    padding: 0.875rem 2rem !important;
     font-size: 1rem !important;
     font-weight: 600 !important;
     letter-spacing: -0.01em !important;
-    min-height: 48px !important; /* Good touch target */
+    min-height: 48px !important;
     transition: var(--transition) !important;
-    box-shadow: 0 4px 14px 0 rgba(91, 71, 251, 0.25) !important; /* Subtle glow */
-    width: 100% !important; /* Full width for mobile by default */
+    box-shadow: 0 4px 14px 0 rgba(91, 71, 251, 0.25) !important;
+    width: 100% !important;
     cursor: pointer;
 }
 
@@ -342,7 +340,6 @@ h3 { /* Card titles */
 
 .stButton > button:active {
     transform: translateY(0) !important;
-    box-shadow: 0 2px 10px 0 rgba(91, 71, 251, 0.2) !important;
 }
 
 /* Feedback section with modern design */
@@ -356,7 +353,7 @@ h3 { /* Card titles */
     overflow: hidden;
 }
 
-.feedback-section::before { /* Decorative element */
+.feedback-section::before {
     content: '💭';
     position: absolute;
     right: 1rem;
@@ -422,7 +419,7 @@ h3 { /* Card titles */
 }
 
 .metric-value {
-    font-size: 1.75rem; /* Slightly smaller for compactness */
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--primary-color);
     margin: 0 0 0.25rem 0;
@@ -447,7 +444,7 @@ h3 { /* Card titles */
     }
 }
 
-@keyframes slideIn { /* For cards */
+@keyframes slideIn {
     from {
         opacity: 0;
         transform: translateX(-20px);
@@ -459,10 +456,10 @@ h3 { /* Card titles */
 }
 
 /* Responsive adjustments */
-@media (min-width: 768px) { /* Tablet and above */
+@media (min-width: 768px) {
     .main .block-container {
         padding: 2rem;
-        max-width: 720px; /* Max width for content on larger screens */
+        max-width: 720px;
     }
 
     h1 {
@@ -478,16 +475,16 @@ h3 { /* Card titles */
     }
 
     .stButton > button {
-        width: auto !important; /* Allow button to size to content on desktop */
+        width: auto !important;
         min-width: 150px !important;
     }
 
     .feedback-section {
-        margin: 3rem auto 2rem auto; /* Center on larger screens */
+        margin: 3rem auto 2rem auto;
     }
 }
 </style>
-""" # THIS IS THE CLOSING TAG THAT WAS MISSING/MISPLACED
+"""
 
 st.markdown(advanced_css, unsafe_allow_html=True)
 
@@ -500,16 +497,15 @@ if 'visit_logged' not in st.session_state:
     analytics.log_visit()
     st.session_state.visit_logged = True
 
-
 # --- Bias Selector ---
 st.markdown("<div class='bias-selector'>", unsafe_allow_html=True)
 st.markdown("<h3>CHOOSE YOUR PERSPECTIVE</h3>", unsafe_allow_html=True)
 
 bias_preference = st.slider(
     "Bias Preference",
-    min_value=-1, # Left
-    max_value=1,  # Right
-    value=0,      # Center (default)
+    min_value=-1,
+    max_value=1,
+    value=0,
     step=1,
     label_visibility="collapsed"
 )
@@ -542,7 +538,6 @@ if 'last_slider_pos' not in st.session_state or st.session_state.last_slider_pos
     analytics.log_slider_position(bias_preference)
     st.session_state.last_slider_pos = bias_preference
 
-
 # --- Display Issues ---
 st.markdown("<h2>Today's Major Issues</h2>", unsafe_allow_html=True)
 
@@ -550,15 +545,15 @@ if not ISSUES:
     st.info("No news issues available at the moment. Please check back later.")
 else:
     for issue_index, issue in enumerate(ISSUES):
-        st.markdown(f"<div class='issue-card' style='animation-delay: {issue_index * 0.1}s'>", unsafe_allow_html=True) # Staggered animation
+        st.markdown(f"<div class='issue-card' style='animation-delay: {issue_index * 0.1}s'>", unsafe_allow_html=True)
         st.markdown(f"<h3>{issue['headline']}</h3>", unsafe_allow_html=True)
-        
+
         # Keywords
         keywords_html = "".join([f"<span class='keyword-pill'>{kw}</span>" for kw in issue['keywords']])
         st.markdown(f"<div class='keywords'><strong>Topics:</strong> {keywords_html}</div>", unsafe_allow_html=True)
-        
+
         filtered_articles = get_articles_by_bias(issue, bias_preference)
-        
+
         if not filtered_articles:
             st.markdown("<p>No articles match your current bias preference for this issue.</p>", unsafe_allow_html=True)
         else:
@@ -579,7 +574,6 @@ else:
                 # A "Read" button per article would make tracking easier with st.button and callbacks.
 
         st.markdown("</div>", unsafe_allow_html=True)
-
 
 # --- Feedback Form ---
 st.markdown('<div class="feedback-section">', unsafe_allow_html=True)
@@ -602,7 +596,6 @@ if st.button("Send Feedback"):
         st.warning("Please enter some feedback before sending.")
 st.markdown('</div>', unsafe_allow_html=True)
 
-
 # --- Admin Analytics ---
 st.markdown('<div class="analytics-section">', unsafe_allow_html=True)
 with st.expander("📊 Site Analytics (Admin Only)", expanded=False):
@@ -610,7 +603,7 @@ with st.expander("📊 Site Analytics (Admin Only)", expanded=False):
     if admin_password == "clarity2023": # Keep your actual password secure
         summary = analytics.get_summary()
         st.markdown("<div class='metric-grid'>", unsafe_allow_html=True)
-        
+
         st.markdown(f"""
             <div class='metric-card'>
                 <p class='metric-value'>{summary['total_visits']}</p>
@@ -630,7 +623,7 @@ with st.expander("📊 Site Analytics (Admin Only)", expanded=False):
             </div>
         """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-        
+
         if summary['clicks_by_url']:
             st.markdown("<h4>Clicks per Article URL:</h4>", unsafe_allow_html=True)
             for url, count in summary['clicks_by_url'].items():
