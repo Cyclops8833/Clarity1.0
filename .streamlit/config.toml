@@ -1,0 +1,15 @@
+[general]
+# Tell Streamlit Cloud to use a stable Python version
+# This prevents build issues with bleeding-edge versions.
+pythonVersion = "3.11"
+
+[logger]
+level = "info"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
