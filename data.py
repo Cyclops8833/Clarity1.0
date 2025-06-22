@@ -94,136 +94,108 @@ def extract_keywords(title, description):
     
     return keywords
 
-@st.cache_data(ttl=1800, show_spinner=False)  # Cache for 30 minutes
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news(country_code='us'):
-    """Fetch news from NewsAPI with comprehensive error handling"""
+    """Fetch news, cluster by primary keyword, and ensure at least 2 biases."""
     if not newsapi:
         return []
-    
+
     try:
-        # Debug information
-        st.write(f"Fetching news for country: {country_code}")
-        
-        # Try to get top headlines
-        response = newsapi.get_top_headlines(
-            country=country_code,
-            language='en',
-            page_size=100
+        # 1) Fetch country-specific headlines; fallback to global if empty
+        resp = newsapi.get_top_headlines(
+            country=country_code, language='en', page_size=100
         )
-        
-        # Debug the response
-        st.write(f"API Status: {response.get('status', 'Unknown')}")
-        st.write(f"Total Results: {response.get('totalResults', 0)}")
-        
-        articles = response.get('articles', [])
+        articles = resp.get('articles') or []
         if not articles:
-            # Try without country restriction
-            st.write("No country-specific news found, trying global English news...")
-            response = newsapi.get_top_headlines(
-                language='en',
-                page_size=100
-            )
-            articles = response.get('articles', [])
-        
-        # Process articles
-        processed_articles = []
+            resp = newsapi.get_top_headlines(language='en', page_size=100)
+            articles = resp.get('articles') or []
+
+        # 2) Preprocess articles
+        processed = []
         seen_titles = set()
-        
-        for article in articles:
-            # Skip if essential fields are missing
-            if not article or not isinstance(article, dict):
+        for a in articles:
+            title = a.get('title') or ""
+            url   = a.get('url') or ""
+            src   = a.get('source') or {}
+            sid   = src.get('id') or ""
+            sname = src.get('name') or "Unknown"
+            if not title or not url:
                 continue
-                
-            title = article.get('title')
-            url = article.get('url')
-            source = article.get('source', {})
-            
-            if not title or not url or not source:
+            key = title.lower()[:60]
+            if key in seen_titles:
                 continue
-            
-            # Skip duplicates
-            title_key = title.lower()[:60]
-            if title_key in seen_titles:
-                continue
-            seen_titles.add(title_key)
-            
-            # Get source information safely
-            source_id = source.get('id') if isinstance(source, dict) else None
-            source_name = source.get('name', 'Unknown Source') if isinstance(source, dict) else 'Unknown Source'
-            
-            # Get bias rating
-            bias = get_source_bias(source_id)
-            
-            processed_articles.append({
+            seen_titles.add(key)
+
+            bias = get_source_bias(sid)
+            processed.append({
                 'title': title,
-                'source': source_name,
-                'source_id': source_id or 'unknown',
-                'bias': bias,
                 'url': url,
-                'description': article.get('description', ''),
-                'publishedAt': article.get('publishedAt', '')
+                'source': sname,
+                'bias': bias,
+                'description': a.get('description') or ""
             })
-        
-        st.write(f"Processed {len(processed_articles)} articles")
-        
-        # Group articles into issues
-        issues = []
-        used_urls = set()
-        
-        for i, main_article in enumerate(processed_articles):
-            if main_article['url'] in used_urls:
+
+        # 3) Cluster by primary keyword
+        clusters = {}
+        for art in processed:
+            kws = extract_keywords(art['title'], art['description'])
+            if not kws: 
                 continue
-            
-            # Create an issue with this article
-            issue_articles = [main_article]
-            used_urls.add(main_article['url'])
-            
-            # Find related articles with different biases
-            main_keywords = set(extract_keywords(main_article['title'], main_article['description']))
-            
-            for other_article in processed_articles:
-                if other_article['url'] in used_urls:
-                    continue
-                
-                # Check if it's from a different bias
-                if other_article['bias'] == main_article['bias']:
-                    continue
-                
-                # Check for keyword similarity
-                other_keywords = set(extract_keywords(other_article['title'], other_article['description']))
-                common_keywords = main_keywords & other_keywords
-                
-                if len(common_keywords) >= 2:  # At least 2 common keywords
-                    issue_articles.append(other_article)
-                    used_urls.add(other_article['url'])
-                    
-                    # Try to get one from each bias
-                    biases = set(a['bias'] for a in issue_articles)
-                    if len(biases) >= 3:
+            primary = kws[0]
+            clusters.setdefault(primary, []).append(art)
+
+        # 4) Build issues from clusters
+        issues = []
+        for idx, (kw, group) in enumerate(clusters.items(), start=1):
+            biases = set(a['bias'] for a in group)
+            if len(biases) < 2:
+                continue
+
+            # pick up to one article per bias
+            sel = []
+            for b in ['left', 'center', 'right']:
+                for a in group:
+                    if a['bias'] == b:
+                        sel.append(a)
                         break
-            
-            # Only create issue if we have multiple perspectives
-            biases = set(a['bias'] for a in issue_articles)
-            if len(biases) >= 2:
-                issues.append({
-                    'id': len(issues) + 1,
-                    'headline': main_article['title'],
-                    'keywords': list(main_keywords)[:5],
-                    'articles': issue_articles,
-                    'biases_covered': sorted(list(biases))
-                })
-            
-            # Limit number of issues
+
+            # ensure at least two articles
+            if len(sel) < 2:
+                continue
+
+            issues.append({
+                'id': idx,
+                'headline': group[0]['title'],
+                'keywords': [kw],
+                'articles': sel,
+                'biases_covered': sorted(biases)
+            })
             if len(issues) >= 10:
                 break
-        
-        st.write(f"Created {len(issues)} issues with multiple perspectives")
+
+        # 5) If still no issues, fallback to single-article issues
+        if not issues:
+            for idx, art in enumerate(processed[:8], start=1):
+                issues.append({
+                    'id': idx,
+                    'headline': art['title'],
+                    'keywords': extract_keywords(art['title'], art['description'])[:3],
+                    'articles': [
+                        art,
+                        {   # placeholder opposite perspective
+                            'title': f"[Other view on] {art['title']}",
+                            'url': art['url'],
+                            'source': "Various",
+                            'bias': 'center',
+                            'description': ""
+                        }
+                    ],
+                    'biases_covered': [art['bias'], 'center']
+                })
         return issues
-        
+
     except Exception as e:
-        st.error(f"Error fetching news: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
+        st.error(f"Error fetching news: {e}")
         return []
 
 def get_articles_by_bias(issue, bias_preference):
