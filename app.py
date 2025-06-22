@@ -495,59 +495,37 @@ COUNTRY_OPTIONS = {
     'United Kingdom': 'gb',
     'Canada': 'ca',
     'India': 'in',
-    'Germany': 'de',
-    'France': 'fr',
-    'Japan': 'jp',
+    'New Zealand': 'nz',
+    'Singapore': 'sg',
+    'Ireland': 'ie'
 }
-country_keys = list(COUNTRY_OPTIONS.keys()) # Get the keys first
 
-# Determine the default_country safely
-if st.session_state.get('initial_load', True):
-    default_country_name = 'Australia' # On first ever load, default to Australia
-    st.session_state.initial_load = False # Mark initial load as done
-elif 'selected_country_name' in st.session_state: # If a country was previously selected by the user
-    default_country_name = st.session_state.selected_country_name
-else: # Fallback if no country in session state and not initial load (should be rare)
-    default_country_name = country_keys[0] # Default to the first option in the list
+# Initialize session state for country selection
+if 'selected_country_name' not in st.session_state:
+    st.session_state.selected_country_name = 'Australia'  # Default to Australia
 
-# Ensure the default_country_name is valid, otherwise fallback to the first key
-if default_country_name not in country_keys:
-    default_country_name = country_keys[0]
-
-default_index = country_keys.index(default_country_name)
-
-# This widget triggers a rerun when its value changes
-selected_country_name = st.selectbox(
-    '📍 Select your region',
-    options=country_keys,
-    index=default_index,
-    key='sb_country_selector', # Add a key for better state management
-    help="Select a region to view top headlines from that country."
-)
-
-selected_country_code = COUNTRY_OPTIONS[selected_country_name]
-
-# Store the selected country name and code in session state
-if 'selected_country_name' not in st.session_state or st.session_state.selected_country_name != selected_country_name:
-    st.session_state.selected_country_name = selected_country_name
-    st.session_state.country_code = selected_country_code # Store the code as well
-    # No st.rerun() here, as the selectbox changing value already triggers a rerun.
-    # We only need to rerun if we programmatically change the country, which we aren't doing here.
-
-# This widget triggers a rerun when its value changes
+# Country selector
 selected_country_name = st.selectbox(
     '📍 Select your region',
     options=list(COUNTRY_OPTIONS.keys()),
-    index=default_index,
-    help="Select a region to view top headlines from that country."
+    index=list(COUNTRY_OPTIONS.keys()).index(st.session_state.selected_country_name),
+    key='country_selector'
 )
 
+# Update session state and get country code
+st.session_state.selected_country_name = selected_country_name
 selected_country_code = COUNTRY_OPTIONS[selected_country_name]
 
-# Store the selected country in session state
-if 'country' not in st.session_state or st.session_state.country != selected_country_code:
-    st.session_state.country = selected_country_code
-    st.rerun() # Rerun to fetch new articles based on country
+# Fetch news with loading indicator
+with st.spinner(f"Fetching top stories from {selected_country_name}..."):
+    ISSUES = fetch_real_news(country_code=selected_country_code)
+
+# Display issues
+if not ISSUES:
+    st.info("No news stories available at the moment. Please try another region or check back later.")
+else:
+    for issue_index, issue in enumerate(ISSUES):
+        # (Rest of your display code remains the same)
 
 # --- Bias Selector ---
 st.markdown("<div class='bias-selector'>", unsafe_allow_html=True)
