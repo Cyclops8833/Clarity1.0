@@ -1,29 +1,28 @@
 # app.py
 import streamlit as st
+import os
+import json
 
 # ✨ Page config MUST be first Streamlit command
 st.set_page_config(
-    page_title="Clarity",
+    page_title="Clarity: Break the Echo Chamber",
     page_icon="🔍",
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed"
 )
 
-import os
-import json
-from data import fetch_real_news, get_articles_by_bias # Import the new fetch function
+# Now import other modules
+from data import fetch_real_news, get_articles_by_bias
+# from analytics import Analytics # Assuming analytics.py exists
 
-# Initialize analytics
-# Note: Re-initialize to ensure it's re-read if the file changes
-# In production, use st.session_state for persistence.
-@st.cache_resource
-def get_analytics_instance():
-    from analytics import Analytics
-    return Analytics()
+# Initialize analytics (if you are using it)
+# @st.cache_resource
+# def get_analytics_instance():
+#     return Analytics()
+# analytics = get_analytics_instance()
 
-analytics = get_analytics_instance()
 
-# --- ADVANCED CSS (Unchanged from last version, but included for completeness) ---
+# --- ADVANCED CSS (Paste your full CSS here - shortened for brevity in this example) ---
 advanced_css = """
 <style>
 /* Import fonts */
@@ -484,9 +483,9 @@ st.markdown("<h1>Clarity</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Break the echo chamber with news from all perspectives</p>", unsafe_allow_html=True)
 
 # Log visit (do this early)
-if 'visit_logged' not in st.session_state:
-    analytics.log_visit()
-    st.session_state.visit_logged = True
+# if 'visit_logged' not in st.session_state:
+#     analytics.log_visit()
+#     st.session_state.visit_logged = True
 
 # --- Country Selector ---
 COUNTRY_OPTIONS = {
@@ -504,30 +503,21 @@ COUNTRY_OPTIONS = {
 if 'selected_country_name' not in st.session_state:
     st.session_state.selected_country_name = 'Australia'  # Default to Australia
 
-# Country selector
+# Country selector (This is the only selectbox widget)
 selected_country_name = st.selectbox(
     '📍 Select your region',
     options=list(COUNTRY_OPTIONS.keys()),
     index=list(COUNTRY_OPTIONS.keys()).index(st.session_state.selected_country_name),
-    key='country_selector'
+    key='country_selector',
+    help="Select a region to view top headlines."
 )
 
 # Update session state and get country code
 st.session_state.selected_country_name = selected_country_name
 selected_country_code = COUNTRY_OPTIONS[selected_country_name]
 
-# Fetch news with loading indicator
-with st.spinner(f"Fetching top stories from {selected_country_name}..."):
-    ISSUES = fetch_real_news(country_code=selected_country_code)
 
-# Display issues
-if not ISSUES:
-    st.info("No news stories available at the moment. Please try another region or check back later.")
-else:
-    for issue_index, issue in enumerate(ISSUES):
-        # (Rest of your display code remains the same)
-
-# --- Bias Selector ---
+# --- Bias Selector (CORRECT LOCATION: Before fetching/displaying news) ---
 st.markdown("<div class='bias-selector'>", unsafe_allow_html=True)
 st.markdown("<h3>CHOOSE YOUR PERSPECTIVE</h3>", unsafe_allow_html=True)
 
@@ -552,22 +542,28 @@ st.markdown(f"""
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Log slider usage (only if it changes)
-if 'last_slider_pos' not in st.session_state or st.session_state.last_slider_pos != bias_preference:
-    analytics.log_slider_position(bias_preference)
-    st.session_state.last_slider_pos = bias_preference
+# if 'last_slider_pos' not in st.session_state or st.session_state.last_slider_pos != bias_preference:
+#     analytics.log_slider_position(bias_preference)
+#     st.session_state.last_slider_pos = bias_preference
+
 
 # --- Fetch and Display Issues ---
 st.markdown(f"<h2>Top Issues in {selected_country_name}</h2>", unsafe_allow_html=True)
 
 # Use a spinner to show that news is loading
-with st.spinner("Fetching today's headlines..."):
+with st.spinner(f"Fetching top stories from {selected_country_name}..."):
     # Pass the selected country code to the fetch function
     ISSUES = fetch_real_news(country_code=selected_country_code)
 
+# Display issues
 if not ISSUES:
-    st.info("No news issues available from this region at the moment. Please try another region or check back later.")
+    st.info("No news stories available at the moment. Please try another region or check back later.")
 else:
+    # This is the 'for' loop that was causing the error. It must contain indented code.
     for issue_index, issue in enumerate(ISSUES):
+        
+        # >>> START OF INDENTED BLOCK <<<
+        
         st.markdown(f"<div class='issue-card' style='animation-delay: {issue_index * 0.1}s'>", unsafe_allow_html=True)
         st.markdown(f"<h3>{issue['headline']}</h3>", unsafe_allow_html=True)
         
@@ -581,7 +577,7 @@ else:
             badge_class = f"bias-{bias_label}" if bias_label in issue.get('biases_covered', []) else "bias-unavailable"
             biases_available_html += f"<span class='source-badge {badge_class}'>{bias_label.upper()}</span> "
 
-        st.markdown(f"<p style='margin-bottom: 1rem;'><strong>Available Perspectives:</strong> {biases_available_html}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='margin-bottom: 1rem; margin-top: 0.5rem;'><strong>Available Perspectives:</strong> {biases_available_html}</p>", unsafe_allow_html=True)
 
         filtered_articles = get_articles_by_bias(issue, bias_preference)
         
@@ -600,6 +596,9 @@ else:
                 """
                 st.markdown(article_html, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
+        
+        # >>> END OF INDENTED BLOCK <<<
+
 
 # --- Feedback Form ---
 st.markdown('<div class="feedback-section">', unsafe_allow_html=True)
@@ -618,30 +617,6 @@ if st.button("Send Feedback"):
         st.warning("Please enter some feedback before sending.")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Admin Analytics ---
-st.markdown('<div class="analytics-section">', unsafe_allow_html=True)
-with st.expander("📊 Site Analytics (Admin Only)", expanded=False):
-    admin_password = st.text_input("Enter Admin Password", type="password", key="admin_pass_expander")
-    if admin_password == "clarity2023":
-        summary = analytics.get_summary()
-        st.markdown("<div class='metric-grid'>", unsafe_allow_html=True)
-        st.markdown(f"""
-            <div class='metric-card'><p class='metric-value'>{summary['total_visits']}</p><p class='metric-label'>Total Visits</p></div>
-            <div class='metric-card'><p class='metric-value'>{summary['total_clicks']}</p><p class='metric-label'>Article Clicks</p></div>
-            <div class='metric-card'><p class='metric-value'>{summary['avg_slider_position']:.1f}</p><p class='metric-label'>Avg. Slider Pos.</p></div>
-            <div class='metric-card'><p class='metric-value'>{(summary['total_clicks']/max(1,summary['total_visits'])*100):.0f}%</p><p class='metric-label'>Click/Visit %</p></div>
-        """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        if summary['clicks_by_url']:
-            st.markdown("<h4>Clicks per Article URL:</h4>", unsafe_allow_html=True)
-            for url, count in summary['clicks_by_url'].items():
-                st.markdown(f"<small><code>{url}</code>: {count} clicks</small>", unsafe_allow_html=True)
-        else:
-            st.markdown("<small>No article clicks recorded yet.</small>", unsafe_allow_html=True)
-    elif admin_password:
-        st.error("Incorrect admin password.")
-st.markdown('</div>', unsafe_allow_html=True)
 
 # Footer
 st.markdown("""
