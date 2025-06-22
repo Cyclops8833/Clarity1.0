@@ -1,5 +1,14 @@
 # app.py
 import streamlit as st
+
+# ✨ Page config MUST be first Streamlit command
+st.set_page_config(
+    page_title="Clarity",
+    page_icon="🔍",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
+
 import os
 import json
 from data import fetch_real_news, get_articles_by_bias # Import the new fetch function
@@ -13,14 +22,6 @@ def get_analytics_instance():
     return Analytics()
 
 analytics = get_analytics_instance()
-
-# Set page config for mobile optimization
-st.set_page_config(
-    page_title="Clarity: Break the Echo Chamber",
-    page_icon="🔍",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
 
 # --- ADVANCED CSS (Unchanged from last version, but included for completeness) ---
 advanced_css = """
