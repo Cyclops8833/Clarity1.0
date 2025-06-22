@@ -104,7 +104,7 @@ def fetch_real_news(country_code='us'):
         return cached_issues
     
     try:
-        st.write("Fetching fresh news...")
+        st.write("Never ending news...")
         
         all_articles = []
         # Fetch global headlines (US)
