@@ -499,9 +499,11 @@ COUNTRY_OPTIONS = {
     'France': 'fr',
     'Japan': 'jp',
 }
-default_country = 'Australia' if st.session_state.get('initial_load', True) else st.session_state.get('country', 'Global (US)')
-default_index = list(COUNTRY_OPTIONS.keys()).index(default_country)
-st.session_state.initial_load = False
+country_keys = list(COUNTRY_OPTIONS.keys())
+if default_country in country_keys:
+    default_index = country_keys.index(default_country)
+else:
+    default_index = 0  # fallback to the first country
 
 # This widget triggers a rerun when its value changes
 selected_country_name = st.selectbox(
